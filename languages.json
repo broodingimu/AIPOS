@@ -17,7 +17,7 @@
         "load_product_error": "无法加载商品数据文件！",
         "product_name": "商品名称",
         "price": "单价",
-        "quantity": "数量",
+        "quantity": "数量/重量",
         "subtotal": "小计",
         "currency_symbol": "¥"
     },
@@ -39,7 +39,7 @@
         "load_product_error": "Failed to load product data!",
         "product_name": "Product",
         "price": "Price",
-        "quantity": "Qty",
+        "quantity": "Qty/Weight",
         "subtotal": "Subtotal",
         "currency_symbol": "$"
     }
