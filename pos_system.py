@@ -62,7 +62,7 @@ class ProductItem(BoxLayout):
         self.orientation = 'horizontal'
         self.size_hint_y = None
         self.height = 60
-        self.padding = [10, 0, 10, 0]  # 设置左右padding
+        self.padding = [5, 0, 20, 0]  # 减小左边距，增加右边距
         self.spacing = 0  # 移除间距
         # 添加背景色和边框
         with self.canvas.before:
@@ -88,13 +88,13 @@ class ProductItem(BoxLayout):
         # 商品名称（左对齐）
         self.name_label = Label(
             text=self.name,
-            size_hint_x=0.4,
+            size_hint_x=0.4,  # 保持商品名称宽度不变
             font_name=FONT_NAME,
             font_size=LIST_FONT_SIZE,
             color=(1, 1, 1, 1),
             halign='left',
             valign='middle',
-            text_size=(400, 60),
+            text_size=(300, 60),
             padding_x=5
         )
         self.add_widget(self.name_label)
@@ -102,7 +102,7 @@ class ProductItem(BoxLayout):
         # 单价（左对齐）
         self.price_label = Label(
             text=str(self.price),
-            size_hint_x=0.2,
+            size_hint_x=0.1,  # 保持单价宽度不变
             font_name=FONT_NAME,
             font_size=LIST_FONT_SIZE,
             color=(1, 1, 1, 1),
@@ -116,7 +116,7 @@ class ProductItem(BoxLayout):
         # 数量（左对齐）
         self.quantity_label = Label(
             text=str(self.quantity),
-            size_hint_x=0.2,
+            size_hint_x=0.1,  # 增加数量宽度到10%
             font_name=FONT_NAME,
             font_size=LIST_FONT_SIZE,
             color=(1, 1, 1, 1),
@@ -130,7 +130,7 @@ class ProductItem(BoxLayout):
         # 小计（左对齐）
         self.subtotal_label = Label(
             text=str(self.subtotal),
-            size_hint_x=0.2,
+            size_hint_x=0.4,  # 增加小计宽度
             font_name=FONT_NAME,
             font_size=LIST_FONT_SIZE,
             color=(1, 1, 1, 1),
@@ -173,9 +173,9 @@ class ProductItem(BoxLayout):
         # 计算每个标签的实际宽度，不考虑padding和spacing
         total_width = self.width
         name_width = total_width * 0.4
-        price_width = total_width * 0.2
-        quantity_width = total_width * 0.2
-        subtotal_width = total_width * 0.2
+        price_width = total_width * 0.1
+        quantity_width = total_width * 0.1
+        subtotal_width = total_width * 0.4
 
         # 更新每个标签的text_size
         self.name_label.text_size = (name_width, self.height)
@@ -301,7 +301,7 @@ class POSSystem(BoxLayout):
             orientation='horizontal',
             size_hint_y=None,
             height=60,
-            padding=[10, 0, 10, 0],
+            padding=[5, 0, 20, 0],  # 减小左边距，增加右边距
             spacing=0
         )
         
@@ -329,7 +329,7 @@ class POSSystem(BoxLayout):
         # 直接添加标签
         self.name_header = Label(
             text='商品名称',
-            size_hint_x=0.4,
+            size_hint_x=0.4,  # 保持商品名称宽度不变
             font_name=FONT_NAME,
             font_size=HEADER_FONT_SIZE,
             bold=True,
@@ -343,7 +343,7 @@ class POSSystem(BoxLayout):
 
         self.price_header = Label(
             text='单价',
-            size_hint_x=0.2,
+            size_hint_x=0.1,  # 保持单价宽度不变
             font_name=FONT_NAME,
             font_size=HEADER_FONT_SIZE,
             bold=True,
@@ -356,8 +356,8 @@ class POSSystem(BoxLayout):
         self.header.add_widget(self.price_header)
 
         self.quantity_header = Label(
-            text='数量',
-            size_hint_x=0.2,
+            text=self.languages[self.current_language]['quantity'],  # 从语言文件获取
+            size_hint_x=0.1,  # 增加数量宽度到10%
             font_name=FONT_NAME,
             font_size=HEADER_FONT_SIZE,
             bold=True,
@@ -371,7 +371,7 @@ class POSSystem(BoxLayout):
 
         self.subtotal_header = Label(
             text='小计',
-            size_hint_x=0.2,
+            size_hint_x=0.4,  # 增加小计宽度
             font_name=FONT_NAME,
             font_size=HEADER_FONT_SIZE,
             bold=True,
