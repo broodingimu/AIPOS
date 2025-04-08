@@ -271,13 +271,13 @@ class POSSystem(BoxLayout):
         # 左上角标题
         self.title_label = Label(
             text='AIPOS',
-            size_hint_x=0.7,
+            size_hint_x=0.5,
             font_name=FONT_NAME,
             font_size=TITLE_FONT_SIZE,
             bold=True
         )
         self.top_layout.add_widget(self.title_label)
-        
+
         # 语言选择器
         self.language_spinner = Spinner(
             text=self.languages[self.current_language]['language_name'],
@@ -488,7 +488,7 @@ class POSSystem(BoxLayout):
             with open('products.csv', 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    self.products[row['plu']] = {
+                    self.products[int(row['plu'])] = {
                         'name': row['name'],
                         'price': float(row['price']),
                         'unit': row['unit']
@@ -496,16 +496,61 @@ class POSSystem(BoxLayout):
         except Exception as e:
             print(f"Error loading products: {e}")
 
+    def parse_barcode(self, barcode):
+        """根据条码位数判断类型并解析"""
+        if not barcode:
+            return None, None, None
+
+        try:
+            # 根据条码长度判断类型
+            if len(barcode) == 13:  # 13位重量码
+                plu = int(barcode[2:7])
+                weight = float(barcode[7:12]) / 1000  # 转换为千克
+                return plu, weight, None
+            elif len(barcode) == 18:  # 18位重量金额码
+                plu = int(barcode[2:7])
+                weight = float(barcode[7:12]) / 1000  # 转换为千克
+                amount = float(barcode[12:17]) / 100  # 转换为元
+                return plu, weight, amount
+            elif len(barcode) == 24:  # 24位保质期码
+                plu = int(barcode[2:7])
+                weight = float(barcode[7:12]) / 1000  # 转换为千克
+                amount = float(barcode[12:17]) / 100  # 转换为元
+                # expiry_date = barcode[17:23]  # 年月日，暂不使用
+                return plu, weight, amount
+            else:
+                # 如果长度不符合规则，尝试将整个条码作为PLU码
+                plu = int(barcode)
+                return plu, 1, None
+        except (ValueError, IndexError):
+            return None, None, None
+
     def add_product(self, barcode):
-        if barcode in self.products:
-            product = self.products[barcode]
+        # 尝试解析生鲜码
+        parsed_plu, parsed_weight, parsed_amount = self.parse_barcode(barcode)
+        
+        # 根据解析结果设置变量
+        if parsed_plu is not None:
+            # 解析成功：使用解析出的PLU查询，使用解析出的重量和金额
+            query_plu = parsed_plu
+            weight = parsed_weight
+            amount = parsed_amount
+        else:
+            # 解析失败：使用原始条码查询，重量为1，金额为商品单价
+            query_plu = int(barcode)
+            weight = 1
+            amount = None  # 将在找到商品后设置为商品单价
+
+        # 查询商品
+        if query_plu in self.products:
+            product = self.products[query_plu]
             
-            # 直接添加新项，不检查是否已存在
+            # 创建新商品项
             item = ProductItem()
             item.name = product['name']
             item.price = product['price']
-            item.quantity = 1
-            item.subtotal = item.price
+            item.quantity = weight
+            item.subtotal = amount if amount is not None else (item.price * item.quantity)
             item.unit = product['unit']
             item.update_labels()
             
@@ -526,7 +571,7 @@ class POSSystem(BoxLayout):
         else:
             # 商品不存在时显示提示
             lang_data = self.languages[self.current_language]
-            self.show_error(f"{lang_data['product_not_found']} ({barcode})")
+            self.show_error(f"{lang_data['product_not_found']} ({query_plu})")
 
     def show_error(self, message):
         # 显示错误信息
