@@ -19,7 +19,8 @@
         "price": "单价",
         "quantity": "数量/重量",
         "subtotal": "小计",
-        "currency_symbol": "¥"
+        "currency_symbol": "¥",
+        "expired_product": "超期商品，无法销售"
     },
     "en_US": {
         "language_name": "English",
@@ -41,6 +42,7 @@
         "price": "Price",
         "quantity": "Qty/Weight",
         "subtotal": "Subtotal",
-        "currency_symbol": "$"
+        "currency_symbol": "$",
+        "expired_product": "Expired product, cannot be sold"
     }
 } 

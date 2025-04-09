@@ -17,6 +17,8 @@ from kivy.resources import resource_add_path
 import os
 from kivy.graphics import Color, Rectangle, Line
 from kivy.uix.popup import Popup
+from barcode_parser import parse_barcode
+from language_manager import LanguageManager
 
 # 设置全屏
 Window.fullscreen = 'auto'
@@ -193,7 +195,7 @@ class PaymentPopup(Popup):
     def __init__(self, pos_system, **kwargs):
         super().__init__(**kwargs)
         self.pos_system = pos_system
-        self.title = self.pos_system.languages[self.pos_system.current_language]['payment_confirmation']
+        self.title = self.pos_system.lang_manager.get_text('payment_confirmation')
         self.title_font = FONT_NAME
         self.title_size = HEADER_FONT_SIZE
         self.size_hint = (0.4, 0.3)
@@ -202,9 +204,8 @@ class PaymentPopup(Popup):
         content = BoxLayout(orientation='vertical', padding=10, spacing=10)
         
         # 添加提示文本
-        lang_data = self.pos_system.languages[self.pos_system.current_language]
         message = Label(
-            text=lang_data['scan_barcode'],
+            text=self.pos_system.lang_manager.get_text('scan_barcode'),
             font_name=FONT_NAME,
             font_size=POPUP_FONT_SIZE,
             size_hint_y=0.6,
@@ -218,7 +219,7 @@ class PaymentPopup(Popup):
         
         # 取消按钮
         cancel_button = Button(
-            text=lang_data['cancel'],
+            text=self.pos_system.lang_manager.get_text('cancel'),
             font_name=FONT_NAME,
             font_size=BUTTON_FONT_SIZE,
             background_color=(0.8, 0.8, 0.8, 1),
@@ -229,7 +230,7 @@ class PaymentPopup(Popup):
         
         # 确认按钮
         confirm_button = Button(
-            text=lang_data['confirm'],
+            text=self.pos_system.lang_manager.get_text('confirm'),
             font_name=FONT_NAME,
             font_size=BUTTON_FONT_SIZE,
             background_color=(0.2, 0.6, 1, 1),
@@ -254,12 +255,8 @@ class POSSystem(BoxLayout):
         self.padding = 10
         self.spacing = 10
 
-        # 加载语言文件
-        with open('languages.json', 'r', encoding='utf-8') as f:
-            self.languages = json.load(f)
-        
-        # 当前语言
-        self.current_language = 'zh_CN'
+        # 初始化语言管理器
+        self.lang_manager = LanguageManager()
         
         # 顶部布局
         self.top_layout = BoxLayout(
@@ -280,8 +277,8 @@ class POSSystem(BoxLayout):
 
         # 语言选择器
         self.language_spinner = Spinner(
-            text=self.languages[self.current_language]['language_name'],
-            values=[lang['language_name'] for lang in self.languages.values()],
+            text=self.lang_manager.get_current_language_name(),
+            values=self.lang_manager.get_language_names(),
             size_hint=(None, None),
             size=(150, 60),
             pos_hint={'right': 0.98, 'top': 0.98},
@@ -356,7 +353,7 @@ class POSSystem(BoxLayout):
         self.header.add_widget(self.price_header)
 
         self.quantity_header = Label(
-            text=self.languages[self.current_language]['quantity'],  # 从语言文件获取
+            text=self.lang_manager.get_text('quantity'),  # 从语言文件获取
             size_hint_x=0.1,  # 增加数量宽度到10%
             font_name=FONT_NAME,
             font_size=HEADER_FONT_SIZE,
@@ -496,38 +493,15 @@ class POSSystem(BoxLayout):
         except Exception as e:
             print(f"Error loading products: {e}")
 
-    def parse_barcode(self, barcode):
-        """根据条码位数判断类型并解析"""
-        if not barcode:
-            return None, None, None
-
-        try:
-            # 根据条码长度判断类型
-            if len(barcode) == 13:  # 13位重量码
-                plu = int(barcode[2:7])
-                weight = float(barcode[7:12]) / 1000  # 转换为千克
-                return plu, weight, None
-            elif len(barcode) == 18:  # 18位重量金额码
-                plu = int(barcode[2:7])
-                weight = float(barcode[7:12]) / 1000  # 转换为千克
-                amount = float(barcode[12:17]) / 100  # 转换为元
-                return plu, weight, amount
-            elif len(barcode) == 24:  # 24位保质期码
-                plu = int(barcode[2:7])
-                weight = float(barcode[7:12]) / 1000  # 转换为千克
-                amount = float(barcode[12:17]) / 100  # 转换为元
-                # expiry_date = barcode[17:23]  # 年月日，暂不使用
-                return plu, weight, amount
-            else:
-                # 如果长度不符合规则，尝试将整个条码作为PLU码
-                plu = int(barcode)
-                return plu, 1, None
-        except (ValueError, IndexError):
-            return None, None, None
-
     def add_product(self, barcode):
         # 尝试解析生鲜码
-        parsed_plu, parsed_weight, parsed_amount = self.parse_barcode(barcode)
+        parsed_plu, parsed_weight, parsed_amount, error_code, error_message = parse_barcode(barcode)
+        if error_code != 0:
+            # 如果是超期商品错误，使用当前语言的错误消息
+            if error_code == 2:
+                error_message = self.lang_manager.get_text('expired_product')
+            self.show_error(f"{error_message}")
+            return None, None, None
         
         # 根据解析结果设置变量
         if parsed_plu is not None:
@@ -570,7 +544,7 @@ class POSSystem(BoxLayout):
             self.update_total()
         else:
             # 商品不存在时显示提示
-            lang_data = self.languages[self.current_language]
+            lang_data = self.lang_manager.get_text()
             self.show_error(f"{lang_data['product_not_found']} ({query_plu})")
 
     def show_error(self, message):
@@ -588,8 +562,7 @@ class POSSystem(BoxLayout):
         total = sum(child.subtotal for child in self.product_list.children 
                    if isinstance(child, ProductItem))
         self.current_total = total
-        lang_data = self.languages[self.current_language]
-        self.pay_button.text = f"{lang_data['pay']}: {lang_data['currency_symbol']}{total:.2f}"
+        self.pay_button.text = f"{self.lang_manager.get_text('pay')}: {self.lang_manager.get_text('currency_symbol')}{total:.2f}"
 
     def on_pay(self, instance):
         # 显示支付确认弹窗
@@ -598,11 +571,8 @@ class POSSystem(BoxLayout):
     
     def on_language_change(self, instance, value):
         # 更新界面语言
-        for lang_code, lang_data in self.languages.items():
-            if lang_data['language_name'] == value:
-                self.current_language = lang_code
-                self.update_ui_language()
-                break
+        if self.lang_manager.set_language(value):
+            self.update_ui_language()
 
     def _update_header_border(self, instance, value):
         """更新表头边框的位置和大小"""
@@ -628,14 +598,13 @@ class POSSystem(BoxLayout):
 
     def update_ui_language(self):
         # 更新界面文本
-        lang_data = self.languages[self.current_language]
-        self.pay_button.text = f"{lang_data['pay']}: {lang_data['currency_symbol']}{self.current_total:.2f}"
+        self.pay_button.text = f"{self.lang_manager.get_text('pay')}: {self.lang_manager.get_text('currency_symbol')}{self.current_total:.2f}"
         
         # 更新表头
-        self.name_header.text = lang_data['product_name']
-        self.price_header.text = lang_data['price']
-        self.quantity_header.text = lang_data['quantity']
-        self.subtotal_header.text = lang_data['subtotal']
+        self.name_header.text = self.lang_manager.get_text('product_name')
+        self.price_header.text = self.lang_manager.get_text('price')
+        self.quantity_header.text = self.lang_manager.get_text('quantity')
+        self.subtotal_header.text = self.lang_manager.get_text('subtotal')
 
 class POSApp(App):
     def build(self):
