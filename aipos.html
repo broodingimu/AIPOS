@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIPOS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", "SimHei", sans-serif;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #000000;
+        }
+
+        .title {
+            font-size: 36px;
+            font-weight: bold;
+            text-align: center;
+            flex-grow: 1;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.3);
+            letter-spacing: 2px;
+            padding: 10px 0;
+        }
+
+        .language-selector {
+            position: absolute;
+            right: 0;
+            top: 0;
+            background-color: #333333;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .fullscreen-btn {
+            position: absolute;
+            right: 120px;
+            top: 0;
+            background-color: #333333;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .fullscreen-btn:hover {
+            background-color: #4d4d4d;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #000000;
+            position: relative;
+            height: calc(100vh - 60px); /* 减去header的高度 */
+        }
+
+        .product-list {
+            flex: 1;
+            overflow-y: auto;
+            background-color: #000000;
+            padding-bottom: 70px; /* 为底部区域留出空间 */
+        }
+
+        .product-header {
+            display: grid;
+            grid-template-columns: 1.6fr 0.5fr 0.5fr 1.2fr;
+            padding: 0 5px 0 15px;
+            background-color: #333333;
+            font-size: 28px;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            height: 80px;
+            line-height: 80px;
+            text-align: left;
+        }
+
+        .product-item {
+            display: grid;
+            grid-template-columns: 1.6fr 0.5fr 0.5fr 1.2fr;
+            padding: 0 5px 0 15px;
+            background-color: #4d4d4d;
+            border-bottom: 1px solid #333333;
+            font-size: 20px;
+            height: 60px;
+            line-height: 60px;
+            text-align: left;
+        }
+
+        .product-item:nth-child(odd) {
+            background-color: #404040;
+        }
+
+        .bottom-section {
+            display: flex;
+            padding: 10px;
+            background-color: #333333;
+            border-top: 1px solid #4d4d4d;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .barcode-input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #ffffff;
+            border: none;
+            margin-right: 10px;
+        }
+
+        .total-section {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            font-size: 24px;
+            background-color: #4d4d4d;
+            min-width: 360px;
+            font-weight: bold;
+            justify-content: center;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #333333;
+            padding: 20px;
+            border-radius: 4px;
+            width: 300px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .modal-message {
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .modal-button {
+            padding: 8px 15px;
+            border: none;
+            background-color: #4d4d4d;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .modal-button:hover {
+            background-color: #666666;
+        }
+
+        .error-toast {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 4px;
+            font-size: 16px;
+            z-index: 1000;
+            text-align: center;
+            min-width: 200px;
+        }
+
+        /* 移动端响应式样式 */
+        @media screen and (max-width: 768px) {
+            .title {
+                font-size: 24px;
+                padding: 5px 0;
+            }
+
+            .fullscreen-btn {
+                right: 80px;
+                padding: 8px;
+                font-size: 14px;
+            }
+
+            .language-selector {
+                padding: 8px;
+                font-size: 14px;
+            }
+
+            .product-header {
+                grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr;
+                font-size: 16px;
+                height: 50px;
+                line-height: 50px;
+                padding: 0 2px 0 8px;
+            }
+
+            .product-item {
+                grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr;
+                font-size: 14px;
+                height: 40px;
+                line-height: 40px;
+                padding: 0 2px 0 8px;
+            }
+
+            .bottom-section {
+                padding: 5px;
+            }
+
+            .barcode-input {
+                padding: 8px;
+                font-size: 14px;
+                margin-right: 5px;
+            }
+
+            .total-section {
+                padding: 8px 10px;
+                font-size: 18px;
+                min-width: 120px;
+            }
+
+            .modal-content {
+                width: 90%;
+                max-width: 300px;
+            }
+
+            .modal-title {
+                font-size: 16px;
+            }
+
+            .modal-message {
+                font-size: 14px;
+            }
+
+            .modal-button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            .main-content {
+                height: calc(100vh - 50px); /* 移动端header更小 */
+            }
+
+            .product-list {
+                padding-bottom: 60px; /* 移动端底部区域更小 */
+            }
+        }
+
+        /* 超小屏幕适配 */
+        @media screen and (max-width: 480px) {
+            .product-header {
+                grid-template-columns: 1fr 0.8fr 0.8fr 0.8fr;
+                font-size: 14px;
+            }
+
+            .product-item {
+                grid-template-columns: 1fr 0.8fr 0.8fr 0.8fr;
+                font-size: 12px;
+            }
+
+            .total-section {
+                min-width: 100px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">AIPOS</div>
+        <button class="fullscreen-btn" id="fullscreenBtn">
+            <span>全屏</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3h4V2H2v5h1V3zm10 0h-4V2h5v5h-1V3zM3 13H2v-5h1v4h4v1H3zm10 0h-4v-1h4v-4h1v5h-1z" fill="currentColor"/>
+            </svg>
+        </button>
+        <select class="language-selector" id="languageSelect">
+            <option value="中文">中文</option>
+            <option value="English">English</option>
+        </select>
+    </div>
+
+    <div class="main-content">
+        <div class="product-list">
+            <div class="product-header">
+                <div>品名</div>
+                <div>单价</div>
+                <div>数量/重量</div>
+                <div>小计</div>
+            </div>
+            <div id="productList"></div>
+        </div>
+
+        <div class="bottom-section">
+            <input type="text" class="barcode-input" id="barcodeInput" placeholder="请扫描或输入条码" autofocus>
+            <div class="total-section" id="totalAmount">支付: ¥0.00</div>
+        </div>
+    </div>
+
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <div class="modal-title" id="paymentModalTitle">支付确认</div>
+            <div class="modal-message" id="paymentModalMessage">请扫码支付</div>
+            <div class="modal-buttons">
+                <button class="modal-button" id="cancelPayment">取消</button>
+                <button class="modal-button" id="confirmPayment">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="error-toast" id="errorModal">
+        <span id="errorMessage"></span>
+    </div>
+
+    <script src="js/language.js"></script>
+    <script src="js/barcode.js"></script>
+    <script src="js/plu.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html> 
