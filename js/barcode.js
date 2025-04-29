@@ -23,11 +23,11 @@ class BarcodeParser {
                 const amount = parseFloat(barcode.substring(12, 17)) / 100;  // 转换为元
                 return { plu, weight, amount, errorCode: 0, errorMessage: '' };
             } 
-            else if (barcode.length === 30) {  // 30位保质期码
+            else if (barcode.length === 28) {  // 28位保质期码
                 const plu = parseInt(barcode.substring(2, 7));
                 const weight = parseFloat(barcode.substring(7, 12)) / 1000;  // 转换为千克
                 const amount = parseFloat(barcode.substring(12, 17)) / 1000;  // 转换为元
-                const expiryDate = barcode.substring(17, 29);  // expiry_date = 250409090210
+                const expiryDate = barcode.substring(17, 27);  // expiry_date = 2504090902
                 
                 const currentTime = new Date();
                 const expiryTime = new Date(
@@ -36,10 +36,9 @@ class BarcodeParser {
                     parseInt(expiryDate.substring(4, 6)),         // 日
                     parseInt(expiryDate.substring(6, 8)),         // 时
                     parseInt(expiryDate.substring(8, 10)),        // 分
-                    parseInt(expiryDate.substring(10, 12))        // 秒
+                    parseInt(0)							        // 秒
                 );
-
-                if ((currentTime - expiryTime) > 10000) {  // 10秒
+                if ((currentTime - expiryTime) > 60000) {  // 60秒
                     return {
                         plu,
                         weight,

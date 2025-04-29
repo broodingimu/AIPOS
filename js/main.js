@@ -31,10 +31,10 @@ class POSSystem {
             this.updateUILanguage();
 
             // 自动进入全屏模式
-            this.toggleFullscreen();
+            // this.toggleFullscreen();
         } catch (error) {
             console.error('系统初始化失败:', error);
-            this.showError('系统初始化失败，请刷新页面重试');
+            this.showError(`系统初始化失败: ${error.message}, 请刷新页面重试`);
         }
     }
 
