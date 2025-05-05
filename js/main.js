@@ -157,8 +157,8 @@ class POSSystem {
         // 计算商品金额
         let price, quantity, subtotal;
         
-        if (barcode.length === 30) {
-            // 30位码：使用商品库单价，条码金额作为小计，weight作为数量
+        if (barcode.length === 28) {
+            // 28位码：使用商品库单价，条码金额作为小计，weight作为数量
             price = product.price;
             quantity = result.weight;
             subtotal = result.amount;

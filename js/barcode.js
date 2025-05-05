@@ -25,8 +25,8 @@ class BarcodeParser {
             } 
             else if (barcode.length === 28) {  // 28位保质期码
                 const plu = parseInt(barcode.substring(2, 7));
-                const weight = parseFloat(barcode.substring(7, 12)) / 1000;  // 转换为千克
-                const amount = parseFloat(barcode.substring(12, 17)) / 1000;  // 转换为元
+                const amount = parseFloat(barcode.substring(7, 12)) / 1000;  // 转换为千克
+                const weight = parseFloat(barcode.substring(12, 17)) / 1000;  // 转换为元
                 const expiryDate = barcode.substring(17, 27);  // expiry_date = 2504090902
                 
                 const currentTime = new Date();
