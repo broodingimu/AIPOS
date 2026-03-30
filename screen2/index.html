@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Fresh Scale Display</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<div class="container">
+		<!-- Header: Store Name -->
+		<header class="header">
+			<h1 class="store-name">SUPERMARKET NAME</h1>
+			<div class="brand-logo">
+				<svg class="logo-image" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+					<defs>
+						<linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+							<stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+						</linearGradient>
+					</defs>
+					<rect width="200" height="60" fill="url(#logoGradient)" rx="8"/>
+					<circle cx="50" cy="30" r="18" fill="#FFFFFF" opacity="0.9"/>
+					<path d="M 45 25 L 50 30 L 55 25 M 50 30 L 50 35" stroke="#4CAF50" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+					<rect x="42" y="37" width="16" height="3" rx="1" fill="#4CAF50"/>
+					<text x="100" y="38" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle">&nbsp;&nbsp;&nbsp;AEON</text>
+				</svg>
+			</div>
+		</header>
+
+		<!-- Main Content Area -->
+		<div class="main-content">
+			<!-- Left Side: Product Info -->
+			<div class="product-info">
+				<div class="product-name-row">
+					<div class="product-name">
+						<span class="product-name-primary">PLEASE PLACE ITEM</span>
+						<span class="product-name-secondary hidden">PLEASE PLACE ITEM</span>
+					</div>
+				</div>
+				
+				<div class="weight-info">
+					<div class="weight-row">
+						<div class="weight-item">
+							<div class="label">TARE</div>
+							<div class="value tare-value">0.000</div>
+							<div class="unit">kg</div>
+						</div>
+						<div class="weight-item">
+							<div class="label">WEIGHT</div>
+							<div class="value weight-value">0.000</div>
+							<div class="unit">kg</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="price-info">
+					<div class="price-row">
+						<div class="price-item">
+							<div class="label">UNIT PRICE</div>
+							<div class="value price-value">¥0.00</div>
+						</div>
+						<div class="price-item">
+							<div class="label">TOTAL PRICE</div>
+							<div class="value total-value">¥0.00</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Right Side: Media Carousel -->
+			<div class="media-carousel">
+				<div class="carousel-container">
+					<div class="carousel-slide active">
+						<img src="https://images.pexels.com/photos/17302468/pexels-photo-17302468.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Fresh Fruits and Vegetables" class="carousel-image">
+					</div>
+					<div class="carousel-slide">
+						<img src="https://images.pexels.com/photos/1300975/pexels-photo-1300975.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Supermarket Fresh Produce" class="carousel-image">
+					</div>
+					<div class="carousel-slide">
+						<img src="https://images.pexels.com/photos/1300976/pexels-photo-1300976.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Fresh Vegetables Display" class="carousel-image">
+					</div>
+					<div class="carousel-slide">
+						<img src="https://images.pexels.com/photos/1300977/pexels-photo-1300977.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop" alt="Grocery Store Promotion" class="carousel-image">
+					</div>
+				</div>
+				<div class="carousel-indicators">
+					<span class="indicator active" data-slide="0"></span>
+					<span class="indicator" data-slide="1"></span>
+					<span class="indicator" data-slide="2"></span>
+					<span class="indicator" data-slide="3"></span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="script.js"></script>
+</body>
+</html>

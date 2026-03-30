@@ -1,6 +1,7 @@
 class POSSystem {
     constructor() {
         this.products = new Map();  // 商品列表
+        this.currentProductsData = [];
         this.currentBarcode = '';  // 当前输入的条码
         this.errorTimeout = null;  // 错误提示定时器
         this.isFullscreen = false; // 全屏状态
@@ -34,7 +35,7 @@ class POSSystem {
             // this.toggleFullscreen();
         } catch (error) {
             console.error('系统初始化失败:', error);
-            this.showError(`系统初始化失败: ${error.message}, 请刷新页面重试`);
+            this.showError(`${languageManager.getText('system_init_failed')}: ${error.message}`);
         }
     }
 
@@ -45,9 +46,10 @@ class POSSystem {
         });
 
         // 语言切换
-        this.languageSelect.addEventListener('change', (e) => {
+        this.languageSelect.addEventListener('change', async (e) => {
             const selectedOption = e.target.options[e.target.selectedIndex];
             languageManager.setLanguage(selectedOption.text);
+            await this.loadProducts();
             this.updateUILanguage();
         });
 
@@ -111,10 +113,60 @@ class POSSystem {
         });
     }
 
+    async loadLanguageProductScript() {
+        const currentLanguage = languageManager.getCurrentLanguage();
+        const languageScriptMap = {
+            'English': 'js/plu_en.js',
+            '中文': 'js/plu_zh.js'
+        };
+        const targetScriptPath = languageScriptMap[currentLanguage] || languageScriptMap['中文'];
+        const isEnglish = currentLanguage === 'English';
+
+        if (isEnglish && typeof PRODUCTS_DATA_EN !== 'undefined' && Array.isArray(PRODUCTS_DATA_EN)) {
+            this.currentProductsData = PRODUCTS_DATA_EN;
+            return;
+        }
+
+        if (!isEnglish && typeof PRODUCTS_DATA_ZH !== 'undefined' && Array.isArray(PRODUCTS_DATA_ZH)) {
+            this.currentProductsData = PRODUCTS_DATA_ZH;
+            return;
+        }
+
+        await new Promise((resolve, reject) => {
+            const existedScript = document.querySelector(`script[data-plu-lang="${currentLanguage}"]`);
+            if (existedScript) {
+                resolve();
+                return;
+            }
+
+            const scriptElement = document.createElement('script');
+            scriptElement.src = targetScriptPath;
+            scriptElement.dataset.pluLang = currentLanguage;
+            scriptElement.onload = () => {
+                resolve();
+            };
+            scriptElement.onerror = () => {
+                reject(new Error(`Failed to load ${targetScriptPath}`));
+            };
+            document.body.appendChild(scriptElement);
+        });
+
+        if (isEnglish && (typeof PRODUCTS_DATA_EN === 'undefined' || !Array.isArray(PRODUCTS_DATA_EN))) {
+            throw new Error(`Invalid product data in ${targetScriptPath}`);
+        }
+
+        if (!isEnglish && (typeof PRODUCTS_DATA_ZH === 'undefined' || !Array.isArray(PRODUCTS_DATA_ZH))) {
+            throw new Error(`Invalid product data in ${targetScriptPath}`);
+        }
+
+        this.currentProductsData = isEnglish ? PRODUCTS_DATA_EN : PRODUCTS_DATA_ZH;
+    }
+
     async loadProducts() {
         try {
+            await this.loadLanguageProductScript();
             this.products = new Map();
-            for (const [barcode, name, price, unit] of PRODUCTS_DATA) {
+            for (const [barcode, name, price, unit] of this.currentProductsData) {
                 this.products.set(barcode, { 
                     name, 
                     price: parseFloat(price), 
@@ -123,13 +175,13 @@ class POSSystem {
             }
 
             if (this.products.size === 0) {
-                throw new Error('没有加载到任何商品数据');
+                throw new Error(languageManager.getText('no_products_loaded'));
             }
 
             console.log('成功加载商品数据，共', this.products.size, '个商品');
         } catch (error) {
             console.error('加载商品数据失败:', error);
-            this.showError('加载商品数据失败：' + error.message);
+            this.showError(`${languageManager.getText('load_products_failed')}: ${error.message}`);
         }
     }
 
@@ -144,7 +196,7 @@ class POSSystem {
 
         const product = this.products.get(result.plu);
         if (!product) {
-            this.showError('商品不存在');
+            this.showError(languageManager.getText('product_not_found'));
             return;
         }
 
@@ -261,7 +313,9 @@ class POSSystem {
         document.querySelector('.title').textContent = 'AIPOS';
         
         // 更新全屏按钮文本
-        this.fullscreenBtn.querySelector('span').textContent = this.isFullscreen ? '退出全屏' : '全屏';
+        this.fullscreenBtn.querySelector('span').textContent = this.isFullscreen
+            ? languageManager.getText('exit_fullscreen')
+            : languageManager.getText('enter_fullscreen');
         
         // 更新表头
         const header = document.querySelector('.product-header');
@@ -275,7 +329,7 @@ class POSSystem {
         
         // 更新模态框
         document.querySelector('#paymentModal .modal-title').textContent = languageManager.getText('payment_confirmation');
-        document.querySelector('#paymentModal .modal-message').textContent = languageManager.getText('scan_barcode');
+        document.querySelector('#paymentModal .modal-message').textContent = languageManager.getText('scan_payment');
         document.querySelector('#paymentModal .modal-button#cancelPayment').textContent = languageManager.getText('cancel');
         document.querySelector('#paymentModal .modal-button#confirmPayment').textContent = languageManager.getText('confirm');
         
