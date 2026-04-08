@@ -5,6 +5,11 @@ class POSSystem {
         this.currentBarcode = '';  // 当前输入的条码
         this.errorTimeout = null;  // 错误提示定时器
         this.isFullscreen = false; // 全屏状态
+        this.heldOrderItems = [];  // 挂单缓存
+        this.lastOrderItems = [];  // 上单缓存
+        this.isOrderHeld = false;  // 挂单状态
+        this.selectedItemIndex = -1; // 当前选中条目索引
+        this.currentPayActionKey = ''; // 当前支付动作键
 
         // 初始化UI元素
         this.productList = document.getElementById('productList');
@@ -15,6 +20,15 @@ class POSSystem {
         this.errorMessage = document.getElementById('errorMessage');
         this.barcodeInput = document.getElementById('barcodeInput');
         this.fullscreenBtn = document.getElementById('fullscreenBtn');
+        this.btnCancelOrder = document.getElementById('btnCancelOrder');
+        this.btnHoldOrder = document.getElementById('btnHoldOrder');
+        this.btnCashPay = document.getElementById('btnCashPay');
+        this.btnAlipay = document.getElementById('btnAlipay');
+        this.btnWechatPay = document.getElementById('btnWechatPay');
+        this.btnSettle = document.getElementById('btnSettle');
+        this.btnCashDrawer = document.getElementById('btnCashDrawer');
+        this.btnReprintLast = document.getElementById('btnReprintLast');
+        this.btnMemberCard = document.getElementById('btnMemberCard');
 
         // 绑定事件
         this.bindEvents();
@@ -56,6 +70,7 @@ class POSSystem {
         // 支付模态框按钮
         document.getElementById('cancelPayment').addEventListener('click', () => {
             this.paymentModal.style.display = 'none';
+            this.barcodeInput.disabled = false;
             this.barcodeInput.focus();
         });
 
@@ -105,12 +120,211 @@ class POSSystem {
             }
         });
 
+        // 支付弹框回车确认
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && this.paymentModal.style.display === 'flex') {
+                e.preventDefault();
+                this.confirmPayment();
+            }
+        });
+
+        // 全局快捷键
+        document.addEventListener('keydown', (e) => {
+            this.handleShortcutKey(e);
+        });
+
         // 点击总金额区域显示支付确认
         this.totalAmount.addEventListener('click', () => {
             if (this.getTotal() > 0) {
+                this.currentPayActionKey = '';
                 this.showPaymentModal();
             }
         });
+
+        this.btnCancelOrder.addEventListener('click', () => {
+            this.clearCurrentOrder();
+            this.barcodeInput.focus();
+        });
+
+        this.btnHoldOrder.addEventListener('click', () => {
+            this.toggleHeldOrder();
+        });
+
+        this.btnCashPay.addEventListener('click', () => {
+            this.openPaymentByAction('pay_action_cash');
+        });
+
+        this.btnAlipay.addEventListener('click', () => {
+            this.openPaymentByAction('pay_action_alipay');
+        });
+
+        this.btnWechatPay.addEventListener('click', () => {
+            this.openPaymentByAction('pay_action_wechat');
+        });
+
+        this.btnSettle.addEventListener('click', () => {
+            this.openPaymentByAction('pay_action_settle');
+        });
+
+        this.btnCashDrawer.addEventListener('click', () => {
+            this.showError(languageManager.getText('msg_cash_drawer_opened'));
+            this.barcodeInput.focus();
+        });
+
+        this.btnReprintLast.addEventListener('click', () => {
+            if (this.lastOrderItems.length === 0) {
+                this.showError(languageManager.getText('msg_no_last_order'));
+                return;
+            }
+            this.restoreOrderFromItems(this.lastOrderItems);
+            this.barcodeInput.focus();
+        });
+
+        this.btnMemberCard.addEventListener('click', () => {
+            this.openPaymentByAction('pay_action_member_card');
+        });
+    }
+
+    handleShortcutKey(event) {
+        if (event.ctrlKey || event.altKey || event.metaKey) {
+            return;
+        }
+
+        const pressedKey = event.key.toLowerCase();
+        const shortcutHandlerMap = {
+            'a': () => {
+                this.clearCurrentOrder();
+                this.barcodeInput.focus();
+            },
+            'b': () => {
+                this.toggleHeldOrder();
+            },
+            'c': () => {
+                this.openPaymentByAction('pay_action_cash');
+            },
+            'd': () => {
+                if (this.lastOrderItems.length === 0) {
+                    this.showError(languageManager.getText('msg_no_last_order'));
+                    return;
+                }
+                this.restoreOrderFromItems(this.lastOrderItems);
+                this.barcodeInput.focus();
+            },
+            'e': () => {
+                this.openPaymentByAction('pay_action_alipay');
+            },
+            'f': () => {
+                this.openPaymentByAction('pay_action_wechat');
+            },
+            'g': () => {
+                this.showError(languageManager.getText('msg_cash_drawer_opened'));
+                this.barcodeInput.focus();
+            },
+            'h': () => {
+                this.openPaymentByAction('pay_action_member_card');
+            },
+            ' ': () => {
+                this.openPaymentByAction('pay_action_settle');
+            },
+            'delete': () => {
+                this.clearCurrentOrder();
+                this.barcodeInput.focus();
+            },
+            'backspace': () => {
+                this.removeSelectedOrderItem();
+                this.barcodeInput.focus();
+            },
+            'arrowup': () => {
+                this.moveSelectedOrderItem(-1);
+            },
+            'arrowdown': () => {
+                this.moveSelectedOrderItem(1);
+            },
+            'escape': () => {
+                if (document.fullscreenElement && document.exitFullscreen) {
+                    document.exitFullscreen();
+                    this.isFullscreen = false;
+                    this.updateUILanguage();
+                }
+            }
+        };
+
+        const shortcutHandler = shortcutHandlerMap[pressedKey];
+        if (!shortcutHandler) {
+            return;
+        }
+
+        event.preventDefault();
+        shortcutHandler();
+    }
+
+    getCurrentOrderItems() {
+        const orderItems = [];
+        const itemElements = this.productList.getElementsByClassName('product-item');
+        for (const itemElement of itemElements) {
+            const nameText = itemElement.children[0].textContent;
+            const priceText = itemElement.children[1].textContent.replace(/[^\d.-]/g, '');
+            const quantityWithUnitText = itemElement.children[2].textContent;
+            const subtotalText = itemElement.children[3].textContent.replace(/[^\d.-]/g, '');
+            const quantityMatch = quantityWithUnitText.match(/^[\d.]+/);
+
+            orderItems.push({
+                name: nameText,
+                price: priceText || '0.00',
+                quantity: quantityMatch ? quantityMatch[0] : '0.000',
+                subtotal: subtotalText || '0.00',
+                unit: quantityWithUnitText.replace(/^[\d.]+/, '')
+            });
+        }
+        return orderItems;
+    }
+
+    clearCurrentOrder() {
+        this.productList.innerHTML = '';
+        this.selectedItemIndex = -1;
+        this.updateTotal();
+    }
+
+    restoreOrderFromItems(orderItems) {
+        this.clearCurrentOrder();
+        const restoredItems = [...orderItems].reverse();
+        for (const orderItem of restoredItems) {
+            this.addProductToList(orderItem);
+        }
+        this.updateTotal();
+    }
+
+    toggleHeldOrder() {
+        if (!this.isOrderHeld) {
+            const currentOrderItems = this.getCurrentOrderItems();
+            if (currentOrderItems.length === 0) {
+                this.showError(languageManager.getText('msg_no_items_to_hold'));
+                return;
+            }
+            this.heldOrderItems = currentOrderItems;
+            this.clearCurrentOrder();
+            this.isOrderHeld = true;
+            this.btnHoldOrder.textContent = languageManager.getText('btn_pick_order');
+        } else {
+            if (this.heldOrderItems.length === 0) {
+                this.showError(languageManager.getText('msg_no_held_order'));
+                return;
+            }
+            this.restoreOrderFromItems(this.heldOrderItems);
+            this.heldOrderItems = [];
+            this.isOrderHeld = false;
+            this.btnHoldOrder.textContent = languageManager.getText('btn_hold_order');
+        }
+        this.barcodeInput.focus();
+    }
+
+    openPaymentByAction(payActionKey = '') {
+        this.currentPayActionKey = payActionKey;
+        if (this.getTotal() <= 0) {
+            this.showError(languageManager.getText('msg_no_items_to_settle'));
+            return;
+        }
+        this.showPaymentModal();
     }
 
     async loadLanguageProductScript() {
@@ -244,10 +458,94 @@ class POSSystem {
             <div>${product.quantity}${product.unit || ''}</div>
             <div>${currencySymbol}${product.subtotal}</div>
         `;
+
+        productElement.addEventListener('click', () => {
+            const itemElements = Array.from(this.productList.getElementsByClassName('product-item'));
+            this.selectedItemIndex = itemElements.indexOf(productElement);
+            this.updateSelectedOrderItemUI();
+        });
         
         // 在列表开头插入新商品
         const firstItem = this.productList.firstChild;
         this.productList.insertBefore(productElement, firstItem);
+        this.selectedItemIndex = 0;
+        this.updateSelectedOrderItemUI();
+    }
+
+    updateSelectedOrderItemUI() {
+        const itemElements = this.productList.getElementsByClassName('product-item');
+        const itemCount = itemElements.length;
+
+        if (itemCount === 0) {
+            this.selectedItemIndex = -1;
+            return;
+        }
+
+        if (this.selectedItemIndex < 0) {
+            this.selectedItemIndex = 0;
+        }
+
+        if (this.selectedItemIndex >= itemCount) {
+            this.selectedItemIndex = itemCount - 1;
+        }
+
+        for (const itemElement of itemElements) {
+            itemElement.classList.remove('selected-item');
+        }
+
+        const selectedItemElement = itemElements[this.selectedItemIndex];
+        selectedItemElement.classList.add('selected-item');
+        selectedItemElement.scrollIntoView({ block: 'nearest' });
+    }
+
+    moveSelectedOrderItem(stepValue) {
+        const itemElements = this.productList.getElementsByClassName('product-item');
+        if (itemElements.length === 0) {
+            return;
+        }
+
+        if (this.selectedItemIndex < 0) {
+            this.selectedItemIndex = 0;
+        } else {
+            this.selectedItemIndex += stepValue;
+        }
+
+        if (this.selectedItemIndex < 0) {
+            this.selectedItemIndex = 0;
+        }
+
+        if (this.selectedItemIndex >= itemElements.length) {
+            this.selectedItemIndex = itemElements.length - 1;
+        }
+
+        this.updateSelectedOrderItemUI();
+    }
+
+    removeSelectedOrderItem() {
+        const itemElements = this.productList.getElementsByClassName('product-item');
+        if (itemElements.length === 0) {
+            return;
+        }
+
+        this.updateSelectedOrderItemUI();
+        const targetItemElement = itemElements[this.selectedItemIndex];
+        if (!targetItemElement) {
+            return;
+        }
+
+        targetItemElement.remove();
+        this.updateTotal();
+
+        const remainItemElements = this.productList.getElementsByClassName('product-item');
+        if (remainItemElements.length === 0) {
+            this.selectedItemIndex = -1;
+            return;
+        }
+
+        if (this.selectedItemIndex >= remainItemElements.length) {
+            this.selectedItemIndex = remainItemElements.length - 1;
+        }
+        this.updateSelectedOrderItemUI();
     }
 
     getTotal() {
@@ -276,9 +574,13 @@ class POSSystem {
         const message = document.getElementById('paymentModalMessage');
         const cancelBtn = document.getElementById('cancelPayment');
         const confirmBtn = document.getElementById('confirmPayment');
+        const totalAmountValue = this.getTotal();
+        const currencySymbol = languageManager.getText('currency_symbol');
 
-        title.textContent = languageManager.getText('payment_confirmation');
-        message.textContent = languageManager.getText('scan_payment');
+        title.textContent = this.currentPayActionKey
+            ? languageManager.getText(this.currentPayActionKey)
+            : languageManager.getText('payment_confirmation');
+        message.textContent = `${languageManager.getText('payment_prefix')}${currencySymbol}${totalAmountValue.toFixed(2)}`;
         cancelBtn.textContent = languageManager.getText('cancel');
         confirmBtn.textContent = languageManager.getText('confirm');
 
@@ -287,10 +589,14 @@ class POSSystem {
     }
 
     confirmPayment() {
+        this.lastOrderItems = this.getCurrentOrderItems();
         // 清空商品列表
-        this.productList.innerHTML = '';
-        this.updateTotal();
+        this.clearCurrentOrder();
         this.paymentModal.style.display = 'none';
+        this.barcodeInput.disabled = false;
+        this.barcodeInput.value = '';
+        this.barcodeInput.focus();
+        this.showError(languageManager.getText('msg_payment_success'));
     }
 
     showError(message) {
@@ -328,13 +634,30 @@ class POSSystem {
         this.barcodeInput.placeholder = languageManager.getText('scan_barcode');
         
         // 更新模态框
-        document.querySelector('#paymentModal .modal-title').textContent = languageManager.getText('payment_confirmation');
+        document.querySelector('#paymentModal .modal-title').textContent = this.currentPayActionKey
+            ? languageManager.getText(this.currentPayActionKey)
+            : languageManager.getText('payment_confirmation');
         document.querySelector('#paymentModal .modal-message').textContent = languageManager.getText('scan_payment');
         document.querySelector('#paymentModal .modal-button#cancelPayment').textContent = languageManager.getText('cancel');
         document.querySelector('#paymentModal .modal-button#confirmPayment').textContent = languageManager.getText('confirm');
         
+        this.btnCancelOrder.textContent = languageManager.getText('btn_cancel_order');
+        this.btnCashPay.textContent = languageManager.getText('btn_cash_pay');
+        this.btnAlipay.textContent = languageManager.getText('btn_alipay');
+        this.btnWechatPay.textContent = languageManager.getText('btn_wechat_pay');
+        this.btnSettle.textContent = languageManager.getText('btn_settle');
+        this.btnCashDrawer.textContent = languageManager.getText('btn_cash_drawer');
+        this.btnReprintLast.textContent = languageManager.getText('btn_reprint_last');
+        this.btnMemberCard.textContent = languageManager.getText('btn_member_card');
+
         // 更新总金额
         this.updateTotal();
+
+        if (this.btnHoldOrder) {
+            this.btnHoldOrder.textContent = this.isOrderHeld
+                ? languageManager.getText('btn_pick_order')
+                : languageManager.getText('btn_hold_order');
+        }
     }
 
     toggleFullscreen() {

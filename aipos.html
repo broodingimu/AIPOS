@@ -84,7 +84,7 @@
             flex: 1;
             overflow-y: auto;
             background-color: #000000;
-            padding-bottom: 70px; /* 为底部区域留出空间 */
+            padding-bottom: 130px; /* 为操作区和底部输入区留出空间 */
         }
 
         .product-header {
@@ -117,6 +117,11 @@
             background-color: #404040;
         }
 
+        .product-item.selected-item {
+            background-color: #5f7f2f;
+            outline: 2px solid #a4d34f;
+        }
+
         .bottom-section {
             display: flex;
             padding: 10px;
@@ -127,6 +132,35 @@
             left: 0;
             right: 0;
             z-index: 100;
+        }
+
+        .action-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 10px;
+            background-color: #262626;
+            border-top: 1px solid #3d3d3d;
+            position: fixed;
+            bottom: 66px;
+            left: 0;
+            right: 0;
+            z-index: 99;
+        }
+
+        .action-button {
+            flex: 1;
+            height: 44px;
+            border: none;
+            background-color: #4d4d4d;
+            color: #ffffff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+
+        .action-button:hover {
+            background-color: #666666;
         }
 
         .barcode-input {
@@ -253,6 +287,18 @@
                 padding: 5px;
             }
 
+            .action-section {
+                bottom: 56px;
+                gap: 5px;
+                padding: 5px;
+            }
+
+            .action-button {
+                height: 38px;
+                font-size: 12px;
+            }
+
+
             .barcode-input {
                 padding: 8px;
                 font-size: 14px;
@@ -288,7 +334,7 @@
             }
 
             .product-list {
-                padding-bottom: 60px; /* 移动端底部区域更小 */
+                padding-bottom: 110px; /* 移动端预留两行底部区域 */
             }
         }
 
@@ -335,6 +381,18 @@
                 <div>小计</div>
             </div>
             <div id="productList"></div>
+        </div>
+
+        <div class="action-section">
+            <button class="action-button" id="btnCancelOrder">整单取消(A)</button>
+            <button class="action-button" id="btnHoldOrder">挂单(B)</button>
+            <button class="action-button" id="btnCashPay">现金(C)</button>
+            <button class="action-button" id="btnAlipay">支付宝(E)</button>
+            <button class="action-button" id="btnWechatPay">微信(F)</button>
+            <button class="action-button" id="btnSettle">结算(Space)</button>
+            <button class="action-button" id="btnCashDrawer">钱箱(G)</button>
+            <button class="action-button" id="btnReprintLast">重打上单(D)</button>
+            <button class="action-button" id="btnMemberCard">会员卡(H)</button>
         </div>
 
         <div class="bottom-section">
