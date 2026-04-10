@@ -23,6 +23,7 @@ class POSSystem {
         this.btnCancelOrder = document.getElementById('btnCancelOrder');
         this.btnHoldOrder = document.getElementById('btnHoldOrder');
         this.btnCashPay = document.getElementById('btnCashPay');
+        this.btnUnionPay = document.getElementById('btnUnionPay');
         this.btnAlipay = document.getElementById('btnAlipay');
         this.btnWechatPay = document.getElementById('btnWechatPay');
         this.btnSettle = document.getElementById('btnSettle');
@@ -69,9 +70,7 @@ class POSSystem {
 
         // 支付模态框按钮
         document.getElementById('cancelPayment').addEventListener('click', () => {
-            this.paymentModal.style.display = 'none';
-            this.barcodeInput.disabled = false;
-            this.barcodeInput.focus();
+            this.closePaymentModal();
         });
 
         document.getElementById('confirmPayment').addEventListener('click', () => {
@@ -130,6 +129,14 @@ class POSSystem {
 
         // 全局快捷键
         document.addEventListener('keydown', (e) => {
+            if (this.paymentModal.style.display === 'flex') {
+                const modalKeyValue = e.key.toLowerCase();
+                if (modalKeyValue === 'escape' || modalKeyValue === 'n') {
+                    e.preventDefault();
+                    this.closePaymentModal();
+                    return;
+                }
+            }
             this.handleShortcutKey(e);
         });
 
@@ -152,6 +159,10 @@ class POSSystem {
 
         this.btnCashPay.addEventListener('click', () => {
             this.openPaymentByAction('pay_action_cash');
+        });
+
+        this.btnUnionPay.addEventListener('click', () => {
+            this.openPaymentByAction('pay_action_union');
         });
 
         this.btnAlipay.addEventListener('click', () => {
@@ -190,19 +201,39 @@ class POSSystem {
             return;
         }
 
+        if (this.paymentModal.style.display === 'flex') {
+            return;
+        }
+
         const pressedKey = event.key.toLowerCase();
         const shortcutHandlerMap = {
             'a': () => {
+                this.moveSelectedOrderItem(-1);
+            },
+            'b': () => {
+                if (document.fullscreenElement && document.exitFullscreen) {
+                    document.exitFullscreen();
+                    this.isFullscreen = false;
+                    this.updateUILanguage();
+                }
+            },
+            'c': () => {
                 this.clearCurrentOrder();
                 this.barcodeInput.focus();
             },
-            'b': () => {
+            'd': () => {
+                this.moveSelectedOrderItem(1);
+            },
+            'e': () => {
                 this.toggleHeldOrder();
             },
-            'c': () => {
+            'f': () => {
                 this.openPaymentByAction('pay_action_cash');
             },
-            'd': () => {
+            'g': () => {
+                this.openPaymentByAction('pay_action_union');
+            },
+            'h': () => {
                 if (this.lastOrderItems.length === 0) {
                     this.showError(languageManager.getText('msg_no_last_order'));
                     return;
@@ -210,18 +241,26 @@ class POSSystem {
                 this.restoreOrderFromItems(this.lastOrderItems);
                 this.barcodeInput.focus();
             },
-            'e': () => {
+            'i': () => {
                 this.openPaymentByAction('pay_action_alipay');
             },
-            'f': () => {
+            'j': () => {
                 this.openPaymentByAction('pay_action_wechat');
             },
-            'g': () => {
+            'k': () => {
+                this.clearCurrentOrder();
+                this.barcodeInput.focus();
+            },
+            'l': () => {
+                this.openPaymentByAction('pay_action_member_card');
+            },
+            'm': () => {
                 this.showError(languageManager.getText('msg_cash_drawer_opened'));
                 this.barcodeInput.focus();
             },
-            'h': () => {
-                this.openPaymentByAction('pay_action_member_card');
+            'n': () => {
+                this.removeSelectedOrderItem();
+                this.barcodeInput.focus();
             },
             ' ': () => {
                 this.openPaymentByAction('pay_action_settle');
@@ -238,6 +277,12 @@ class POSSystem {
                 this.moveSelectedOrderItem(-1);
             },
             'arrowdown': () => {
+                this.moveSelectedOrderItem(1);
+            },
+            'w': () => {
+                this.moveSelectedOrderItem(-1);
+            },
+            's': () => {
                 this.moveSelectedOrderItem(1);
             },
             'escape': () => {
@@ -588,14 +633,18 @@ class POSSystem {
         this.barcodeInput.disabled = true;
     }
 
+    closePaymentModal() {
+        this.paymentModal.style.display = 'none';
+        this.barcodeInput.disabled = false;
+        this.barcodeInput.focus();
+    }
+
     confirmPayment() {
         this.lastOrderItems = this.getCurrentOrderItems();
         // 清空商品列表
         this.clearCurrentOrder();
-        this.paymentModal.style.display = 'none';
-        this.barcodeInput.disabled = false;
+        this.closePaymentModal();
         this.barcodeInput.value = '';
-        this.barcodeInput.focus();
         this.showError(languageManager.getText('msg_payment_success'));
     }
 
@@ -643,6 +692,7 @@ class POSSystem {
         
         this.btnCancelOrder.textContent = languageManager.getText('btn_cancel_order');
         this.btnCashPay.textContent = languageManager.getText('btn_cash_pay');
+        this.btnUnionPay.textContent = languageManager.getText('btn_union_pay');
         this.btnAlipay.textContent = languageManager.getText('btn_alipay');
         this.btnWechatPay.textContent = languageManager.getText('btn_wechat_pay');
         this.btnSettle.textContent = languageManager.getText('btn_settle');
