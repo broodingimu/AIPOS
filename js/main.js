@@ -131,9 +131,14 @@ class POSSystem {
         document.addEventListener('keydown', (e) => {
             if (this.paymentModal.style.display === 'flex') {
                 const modalKeyValue = e.key.toLowerCase();
-                if (modalKeyValue === 'escape' || modalKeyValue === 'n') {
+                if (modalKeyValue === 'escape' || modalKeyValue === 'n' || modalKeyValue === 'b') {
                     e.preventDefault();
                     this.closePaymentModal();
+                    return;
+                }
+                if (e.code === 'Space' || modalKeyValue === ' ') {
+                    e.preventDefault();
+                    this.confirmPayment();
                     return;
                 }
             }
