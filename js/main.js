@@ -10,6 +10,13 @@ class POSSystem {
         this.isOrderHeld = false;  // 挂单状态
         this.selectedItemIndex = -1; // 当前选中条目索引
         this.currentPayActionKey = ''; // 当前支付动作键
+        this.scaleIp = '';
+        this.barcodeQueue = [];
+        this.isSyncing = false;
+        this.syncTimer = null;
+        this.scaleIpStorageKey = 'aipos_scale_ip';
+        this.barcodeQueueStorageKey = 'aipos_barcode_queue_v1';
+        this.maxBarcodeQueueSize = 500;
 
         // 初始化UI元素
         this.productList = document.getElementById('productList');
@@ -30,6 +37,11 @@ class POSSystem {
         this.btnCashDrawer = document.getElementById('btnCashDrawer');
         this.btnReprintLast = document.getElementById('btnReprintLast');
         this.btnMemberCard = document.getElementById('btnMemberCard');
+        this.scaleSettingsBtn = document.getElementById('scaleSettingsBtn');
+        this.scaleConfigModal = document.getElementById('scaleConfigModal');
+        this.scaleIpInput = document.getElementById('scaleIpInput');
+        this.cancelScaleConfig = document.getElementById('cancelScaleConfig');
+        this.saveScaleConfig = document.getElementById('saveScaleConfig');
 
         // 绑定事件
         this.bindEvents();
@@ -45,6 +57,10 @@ class POSSystem {
             
             // 更新UI语言
             this.updateUILanguage();
+
+            this.initScaleConfig();
+            this.loadBarcodeQueue();
+            this.startSyncLoop();
 
             // 自动进入全屏模式
             // this.toggleFullscreen();
@@ -92,8 +108,8 @@ class POSSystem {
 
         // 全局键盘事件
         document.addEventListener('keypress', (e) => {
-            // 如果当前焦点在输入框，不处理
-            if (document.activeElement === this.barcodeInput) {
+            // 在任意可编辑输入区域或弹框打开时，不接管扫码键盘输入
+            if (this.shouldIgnoreGlobalKeyInput(e)) {
                 return;
             }
             
@@ -129,6 +145,9 @@ class POSSystem {
 
         // 全局快捷键
         document.addEventListener('keydown', (e) => {
+            if (this.shouldIgnoreGlobalKeyInput(e)) {
+                return;
+            }
             if (this.paymentModal.style.display === 'flex') {
                 const modalKeyValue = e.key.toLowerCase();
                 if (modalKeyValue === 'escape' || modalKeyValue === 'n' || modalKeyValue === 'b') {
@@ -198,6 +217,18 @@ class POSSystem {
 
         this.btnMemberCard.addEventListener('click', () => {
             this.openPaymentByAction('pay_action_member_card');
+        });
+
+        this.scaleSettingsBtn.addEventListener('click', () => {
+            this.openScaleConfigModal();
+        });
+
+        this.cancelScaleConfig.addEventListener('click', () => {
+            this.closeScaleConfigModal();
+        });
+
+        this.saveScaleConfig.addEventListener('click', () => {
+            this.saveScaleIpConfig();
         });
     }
 
@@ -450,7 +481,14 @@ class POSSystem {
     }
 
     processBarcode(barcode) {
-        const result = BarcodeParser.parse(barcode);
+        const inputBarcode = (barcode || '').trim();
+        if (!inputBarcode) {
+            this.showError(languageManager.getText('empty_barcode'));
+            return;
+        }
+        this.enqueueBarcode(inputBarcode);
+
+        const result = BarcodeParser.parse(inputBarcode);
         
         // 检查基本错误（空条码、格式错误等）
         if (result.errorCode === 1 || result.errorCode === 3) {
@@ -473,7 +511,7 @@ class POSSystem {
         // 计算商品金额
         let price, quantity, subtotal;
         
-        if (barcode.length === 28) {
+        if (inputBarcode.length === 28) {
             // 28位码：使用商品库单价，条码金额作为小计，weight作为数量
             price = product.price;
             quantity = result.weight;
@@ -704,6 +742,9 @@ class POSSystem {
         this.btnCashDrawer.textContent = languageManager.getText('btn_cash_drawer');
         this.btnReprintLast.textContent = languageManager.getText('btn_reprint_last');
         this.btnMemberCard.textContent = languageManager.getText('btn_member_card');
+        if (this.scaleSettingsBtn) {
+            this.scaleSettingsBtn.textContent = '核销秤';
+        }
 
         // 更新总金额
         this.updateTotal();
@@ -727,6 +768,173 @@ class POSSystem {
                 this.isFullscreen = false;
             }
         }
+    }
+
+    shouldIgnoreGlobalKeyInput(event) {
+        if (this.scaleConfigModal && this.scaleConfigModal.style.display === 'flex') {
+            return true;
+        }
+
+        const targetElement = event && event.target ? event.target : document.activeElement;
+        if (!targetElement) {
+            return false;
+        }
+
+        const editableTagNames = ['INPUT', 'TEXTAREA', 'SELECT'];
+        if (editableTagNames.includes(targetElement.tagName)) {
+            return true;
+        }
+
+        return targetElement.isContentEditable === true;
+    }
+
+    initScaleConfig() {
+        const savedScaleIp = localStorage.getItem(this.scaleIpStorageKey) || '';
+        this.scaleIp = this.normalizeScaleIp(savedScaleIp);
+        if (this.scaleIpInput) {
+            this.scaleIpInput.value = this.scaleIp;
+        }
+    }
+
+    openScaleConfigModal() {
+        if (this.scaleIpInput) {
+            this.scaleIpInput.value = this.scaleIp || '';
+        }
+        this.scaleConfigModal.style.display = 'flex';
+    }
+
+    closeScaleConfigModal() {
+        this.scaleConfigModal.style.display = 'none';
+        this.barcodeInput.focus();
+    }
+
+    saveScaleIpConfig() {
+        const inputValue = this.scaleIpInput.value;
+        const normalizedIp = this.normalizeScaleIp(inputValue);
+        if (!normalizedIp) {
+            this.showError('IP格式错误');
+            return;
+        }
+
+        this.scaleIp = normalizedIp;
+        localStorage.setItem(this.scaleIpStorageKey, this.scaleIp);
+        this.closeScaleConfigModal();
+    }
+
+    normalizeScaleIp(ipText) {
+        if (!ipText) {
+            return '';
+        }
+        let normalizedText = ipText.trim();
+        normalizedText = normalizedText.replace(/^https?:\/\//i, '');
+        normalizedText = normalizedText.replace(/\/.*$/, '');
+        normalizedText = normalizedText.replace(/:\d+$/, '');
+
+        const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+        return ipv4Pattern.test(normalizedText) ? normalizedText : '';
+    }
+
+    loadBarcodeQueue() {
+        try {
+            const queueText = localStorage.getItem(this.barcodeQueueStorageKey);
+            const queueData = queueText ? JSON.parse(queueText) : [];
+            this.barcodeQueue = Array.isArray(queueData) ? queueData : [];
+            this.trimBarcodeQueue();
+            this.saveBarcodeQueue();
+        } catch (error) {
+            this.barcodeQueue = [];
+            this.saveBarcodeQueue();
+        }
+    }
+
+    enqueueBarcode(outcode) {
+        this.barcodeQueue.unshift({
+            id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            outcode: outcode
+        });
+        this.trimBarcodeQueue();
+        this.saveBarcodeQueue();
+    }
+
+    trimBarcodeQueue() {
+        if (this.barcodeQueue.length > this.maxBarcodeQueueSize) {
+            this.barcodeQueue = this.barcodeQueue.slice(0, this.maxBarcodeQueueSize);
+        }
+    }
+
+    saveBarcodeQueue() {
+        localStorage.setItem(this.barcodeQueueStorageKey, JSON.stringify(this.barcodeQueue));
+    }
+
+    startSyncLoop() {
+        if (this.syncTimer) {
+            clearInterval(this.syncTimer);
+        }
+        this.syncTimer = setInterval(() => {
+            this.syncBarcodeQueue();
+        }, 5000);
+    }
+
+    async syncBarcodeQueue() {
+        if (this.isSyncing || !this.scaleIp || this.barcodeQueue.length === 0) {
+            return;
+        }
+
+        this.isSyncing = true;
+        try {
+            const queueSnapshot = [...this.barcodeQueue];
+            for (const queueItem of queueSnapshot) {
+                const isSuccess = await this.sendOutcode(queueItem.outcode);
+                if (!isSuccess) {
+                    continue;
+                }
+
+                this.barcodeQueue = this.barcodeQueue.filter(item => item.id !== queueItem.id);
+                this.saveBarcodeQueue();
+            }
+        } finally {
+            this.isSyncing = false;
+        }
+    }
+
+    sendOutcode(outcode) {
+        return new Promise((resolve) => {
+            const callbackName = `aiposJsonpCb_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+            const scriptElement = document.createElement('script');
+            const timeoutId = setTimeout(() => {
+                cleanup();
+                resolve(false);
+            }, 15000);
+
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                try {
+                    delete window[callbackName];
+                } catch (cleanupError) {
+                    window[callbackName] = undefined;
+                }
+                if (scriptElement.parentNode) {
+                    scriptElement.parentNode.removeChild(scriptElement);
+                }
+            };
+
+            window[callbackName] = (payload) => {
+                cleanup();
+                const isOk = payload && payload.head && Number(payload.head.code) === 0;
+                resolve(isOk);
+            };
+
+            scriptElement.onerror = () => {
+                cleanup();
+                resolve(false);
+            };
+
+            const baseUrl = `http://${this.scaleIp}:11071/checkout_trans`;
+            const queryOutcode = encodeURIComponent(outcode);
+            const queryCallback = encodeURIComponent(callbackName);
+            scriptElement.src = `${baseUrl}?outcode=${queryOutcode}&callback=${queryCallback}`;
+            document.head.appendChild(scriptElement);
+        });
     }
 }
 
