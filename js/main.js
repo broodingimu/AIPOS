@@ -743,7 +743,11 @@ class POSSystem {
         this.btnReprintLast.textContent = languageManager.getText('btn_reprint_last');
         this.btnMemberCard.textContent = languageManager.getText('btn_member_card');
         if (this.scaleSettingsBtn) {
-            this.scaleSettingsBtn.textContent = '核销秤';
+            this.scaleSettingsBtn.textContent = languageManager.getText('settings');
+        }
+        const scaleConfigModalTitleEl = document.getElementById('scaleConfigModalTitle');
+        if (scaleConfigModalTitleEl) {
+            scaleConfigModalTitleEl.textContent = languageManager.getText('scale_ip_modal_title');
         }
 
         // 更新总金额
